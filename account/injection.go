@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"account/handler"
 	"account/repository"
@@ -25,7 +26,7 @@ func inject(d *dataSources) (*gin.Engine, error) {
 	 * repository layer
 	 */
 	userRepository := repository.NewUserRepository(d.DB)
-
+	tokenRepository := repository.NewTokenRepository(d.RedisClient)
 	/*
 	 * repository layer
 	 */
@@ -77,6 +78,7 @@ func inject(d *dataSources) (*gin.Engine, error) {
 		return nil, fmt.Errorf("could not parse REFRESH_TOKEN_EXP as int: %w", err)
 	}
 	tokenService := service.NewTokenService(&service.TSConfig{
+		TokenRepository:       tokenRepository,
 		PrivKey:               privKey,
 		PubKey:                pubKey,
 		RefreshSecret:         refreshSecret,
@@ -87,11 +89,21 @@ func inject(d *dataSources) (*gin.Engine, error) {
 	// initialize gin.Engine
 	router := gin.Default()
 	baseURL := os.Getenv("ACCOUNT_API_URL")
+
+	// read in HANDLER_TIMEOUT
+	handlerTimeout := os.Getenv("HANDLER_TIMEOUT")
+	ht, err := strconv.ParseInt(handlerTimeout, 0, 64)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse HANDLER_TIMEOUT as int: %w", err)
+	}
+
+	// initialize handler
 	handler.NewHandler(&handler.Config{
-		R:            router,
-		UserService:  userService,
-		TokenService: tokenService,
-		BaseURL:      baseURL,
+		R:               router,
+		UserService:     userService,
+		TokenService:    tokenService,
+		BaseURL:         baseURL,
+		TimeoutDuration: time.Duration(time.Duration(ht) * time.Second),
 	})
 
 	return router, nil

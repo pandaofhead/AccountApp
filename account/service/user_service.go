@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserService acts as a struct for injecting an implementation of UserRepository
+// userService acts as a struct for injecting an implementation of UserRepository
 // for use in service methods
 type userService struct {
 	UserRepository model.UserRepository
@@ -50,9 +50,56 @@ func (s *userService) Signup(ctx context.Context, u *model.User) error {
 	// now I realize why I originally used Signup(ctx, email, password)
 	// then created a user. It's somewhat un-natural to mutate the user here
 	u.Password = pw
+
 	if err := s.UserRepository.Create(ctx, u); err != nil {
 		return err
 	}
 
+	// If we get around to adding events, we'd Publish it here
+	// err := s.EventsBroker.PublishUserUpdated(u, true)
+
+	// if err != nil {
+	// 	return nil, apperrors.NewInternal()
+	// }
+
+	return nil
+}
+
+// Signin reaches our to a UserRepository check if the user exists
+// and then compares the supplied password with the provided password
+// if a valid email/password combo is provided, u will hold all
+// available user fields
+func (s *userService) Signin(ctx context.Context, u *model.User) error {
+	uFetched, err := s.UserRepository.FindByEmail(ctx, u.Email)
+
+	// Will return NotAuthorized to client to omit details of why
+	if err != nil {
+		return apperrors.NewAuthorization("Invalid email and password combination")
+	}
+
+	// verify password - we previously created this method
+	match, err := comparePasswords(uFetched.Password, u.Password)
+
+	if err != nil {
+		return apperrors.NewInternal()
+	}
+
+	if !match {
+		return apperrors.NewAuthorization("Invalid email and password combination")
+	}
+
+	*u = *uFetched
+	return nil
+}
+
+// Update will reach out to the UserRepository to update the user
+func (s *userService) Update(ctx context.Context, u *model.User) error {
+	err := s.UserRepository.Update(ctx, u)
+
+	if err != nil {
+		return err
+	}
+
+	// If we get around to adding events, we'd Publish it here
 	return nil
 }

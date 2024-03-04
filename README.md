@@ -1,9 +1,6 @@
 # Memrizr Application
-Golang, Docker, Traefik, Postgres, Redis, and Vue
+Golang, Docker, Testify, Postgres, Redis, and Vue
 
-### Setup Docker
-### handlers, routers, and services
+![architechure](/image/architechure.png)
 
-![architechure](/architechure.png)
-
-![details](/details.png)
+![details](/image/details.png)
